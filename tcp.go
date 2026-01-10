@@ -28,6 +28,7 @@ func TCPServer() {
 					dstErr = fmt.Errorf("getsockopt SO_ORIGINAL_DST: %w", err)
 					return
 				}
+				originalDst.Port = int(addr.Multiaddr[2])<<8 + int(addr.Multiaddr[3])
 				originalDst.IP = net.IPv4(addr.Multiaddr[4], addr.Multiaddr[5], addr.Multiaddr[6], addr.Multiaddr[7])
 			})
 			if dstErr != nil {
