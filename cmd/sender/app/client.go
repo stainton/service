@@ -9,7 +9,7 @@ import (
 )
 
 func RunClient(target string) {
-	c, err := grpc.NewClient(target)
+	c, err := grpc.Dial(target, grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
