@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package fakesvc;
+option go_package = "pkg/fakesvc/proto";
+
+
+message FakeRequest {}
+
+message FakeResponse {
+    string stream_id =1;
+    string msg_id = 2;
+    string msg = 3;
+}
+
+// FakeService 假服务
+service FakeService {
+    rpc GetStream(FakeRequest) returns (stream FakeResponse) {}
+}
