@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -37,15 +38,32 @@ func TCPServer() {
 				return
 			}
 			out, err := net.DialTimeout("tcp", originalDst.String(), 5*time.Second)
-			// out, err := net.Dial("tcp", originalDst.String())
 			if err != nil {
 				fmt.Printf("can not connect to original dst: %v, err: %v\n", originalDst.String(), err)
 				return
 			}
 			defer out.Close()
+			_ = in.SetDeadline(time.Now().Add(idleTimeout))
 			_ = out.SetDeadline(time.Now().Add(idleTimeout))
-			go io.Copy(in, out)
-			go io.Copy(out, in)
+			wg := sync.WaitGroup{}
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				io.Copy(in, out)
+				err := in.(*net.TCPConn).CloseWrite()
+				if err != nil {
+					fmt.Printf("close write to in error: %v\n", err)
+				}
+			}()
+			go func() {
+				defer wg.Done()
+				io.Copy(out, in)
+				err := out.(*net.TCPConn).CloseWrite()
+				if err != nil {
+					fmt.Printf("close write to out error: %v\n", err)
+				}
+			}()
+			wg.Wait()
 		}()
 	}
 }
