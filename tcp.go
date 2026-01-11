@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -15,7 +17,11 @@ const idleTimeout = 10 * time.Second
 func TCPServer() {
 	listener, _ := net.Listen("tcp", ":15001")
 	for {
-		in, _ := listener.Accept()
+		in, err := listener.Accept()
+		if err != nil {
+			fmt.Printf("accept error: %v\n", err)
+			continue
+		}
 		go func() {
 			fmt.Println("[Debug] new connection coming")
 			defer in.Close()
@@ -53,7 +59,7 @@ func TCPServer() {
 				defer wg.Done()
 				io.Copy(in, out)
 				err := in.(*net.TCPConn).CloseWrite()
-				if err != nil {
+				if err != nil && !isConnClosedError(err) {
 					fmt.Printf("close write to in error: %v\n", err)
 				}
 				fmt.Printf("finish transfer from out to in\n")
@@ -62,7 +68,7 @@ func TCPServer() {
 				defer wg.Done()
 				io.Copy(out, in)
 				err := out.(*net.TCPConn).CloseWrite()
-				if err != nil {
+				if err != nil && !isConnClosedError(err) {
 					fmt.Printf("close write to out error: %v\n", err)
 				}
 				fmt.Printf("finish transfer from in to out\n")
@@ -71,4 +77,10 @@ func TCPServer() {
 			fmt.Printf("connection from %v to %v closed\n", in.RemoteAddr().String(), originalDst.String())
 		}()
 	}
+}
+
+func isConnClosedError(err error) bool {
+	return errors.Is(err, syscall.ENOTCONN) ||
+		errors.Is(err, syscall.EPIPE) ||
+		errors.Is(err, net.ErrClosed)
 }
